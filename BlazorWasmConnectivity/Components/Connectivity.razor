@@ -1,0 +1,33 @@
+﻿<div class="rounded-circle" style="width:100px; height: 100px; background-color: @Color; margin:0 auto;"></div>
+
+@code
+{
+    private string Color { get; set; }
+
+    [Inject] public IJSRuntime JSRuntime { get; set; }
+
+    private IJSObjectReference modulePlayer;
+    private Lazy<Task<IJSObjectReference>> moduleTask;
+
+    [Parameter] public EventCallback<bool> OnConnectionChanged { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var dotNetObjRef = DotNetObjectReference.Create(this);
+
+        moduleTask = new(() => JSRuntime.InvokeAsync<IJSObjectReference>("import", "/js/connectivityJsInterop.js").AsTask());
+        var module = await moduleTask.Value;
+        await module.InvokeAsync<Task>("connectivityStatusIndicator.registerConnectivityStatusHandler", dotNetObjRef);
+
+        //await Task.Delay(60000);
+        //await module.InvokeVoidAsync("connectivityStatusIndicator.dispose");
+    }
+
+    [JSInvokable]
+    public void OnConnectivityChanged(bool isOnline)
+    {
+        Color = isOnline ? "green" : "red";
+        OnConnectionChanged.InvokeAsync(isOnline).Wait();
+        StateHasChanged();
+    }
+}
